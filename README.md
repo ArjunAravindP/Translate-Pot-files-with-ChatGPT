@@ -64,6 +64,11 @@ You can start editing the page by modifying `app/page.tsx`. The page auto-update
 - Click on generate and wait till the transaltion is completed.
 - Once completed the file will automatically be generated.
 
+## Screenshot
+<img width="1440" alt="Screenshot 2024-12-30 at 10 34 56 PM" src="https://github.com/user-attachments/assets/16521234-cfb2-4184-9ca9-8216bc590a50" />
+
+
+
 This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
 
 ## Learn More
