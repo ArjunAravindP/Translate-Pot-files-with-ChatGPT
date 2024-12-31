@@ -68,19 +68,23 @@ export default function Translation() {
     return matches.map(match => match[1])
   }
 
+  const chunkArray = <T,>(array: T[], size: number): T[][] => {
+    return Array.from({ length: Math.ceil(array.length / size) }, (_, i) => array.slice(i * size, i * size + size))
+  }
+
   // Translate text using API
-  const translateText = async (text: string, targetLang: string) => {
+  const translateBatch = async (texts: string[], targetLang: string) => {
     try {
       const response = await fetch("/api/gemini-translate", {
-        // use /api/openai-translate to translate using openai
-        // use /api/groq-translate to translate using groq
-        // use /api/gemini-translate to translate using google gemini
+        //use /api/openai-transalte to use chatGPT
+        //use api/groq-translate to use groq
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ text, targetLanguage: targetLang })
+        body: JSON.stringify({ texts, targetLanguage: targetLang })
       })
       const data = await response.json()
-      return data.translation
+      if (data.error) throw new Error(data.error)
+      return data.translations
     } catch (err) {
       console.error(`Translation error:`, err)
       throw err
@@ -99,37 +103,48 @@ export default function Translation() {
     setProgress(0)
 
     try {
-      // Extract strings from POT file
       const strings = await extractStrings(selectedFile)
       const zip = new JSZip()
 
-      // Process each selected language
+      // Process each language
       for (let i = 0; i < selectedLanguages.length; i++) {
         const langCode = selectedLanguages[i]
-        const translations = await Promise.all(strings.map(str => translateText(str, langCode)))
 
-        // Generate PO file content with headers
+        // Split strings into chunks of 50
+        const stringChunks = chunkArray(strings, 50)
+        const translations: { [key: number]: string } = {}
+
+        // Process each chunk
+        for (let j = 0; j < stringChunks.length; j++) {
+          const chunkTranslations = await translateBatch(stringChunks[j], langCode)
+          Object.assign(translations, chunkTranslations)
+
+          // Update progress including chunk progress
+          const totalChunks = stringChunks.length * selectedLanguages.length
+          const completedChunks = i * stringChunks.length + (j + 1)
+          setProgress((completedChunks * 100) / totalChunks)
+        }
+
+        // Generate PO file content
         let poContent = `msgid ""
-msgstr ""
-"Project-Id-Version: Plugin Translation\\n"
-"POT-Creation-Date: ${currentDate}\\n"
-"PO-Revision-Date: ${currentDate}\\n"
-"Language: ${langCode}\\n"
-"MIME-Version: 1.0\\n"
-"Content-Type: text/plain; charset=UTF-8\\n"
-"Content-Transfer-Encoding: 8bit\\n"\n\n`
+  msgstr ""
+  "Project-Id-Version: Plugin Translation\\n"
+  "POT-Creation-Date: ${currentDate}\\n"
+  "PO-Revision-Date: ${currentDate}\\n"
+  "Language: ${langCode}\\n"
+  "MIME-Version: 1.0\\n"
+  "Content-Type: text/plain; charset=UTF-8\\n"
+  "Content-Transfer-Encoding: 8bit\\n"\n\n`
 
-        // Add translated strings to PO content
+        // Add translated strings in order
         strings.forEach((str, index) => {
-          poContent += `msgid "${str}"\nmsgstr "${translations[index]}"\n\n`
+          poContent += `msgid "${str}"\nmsgstr "${translations[index] || str}"\n\n`
         })
 
-        // Add PO file to zip archive
         zip.file(`${langCode}.po`, poContent)
-        setProgress(((i + 1) * 100) / selectedLanguages.length)
       }
 
-      // Generate and trigger download of zip file
+      // Generate and download zip file
       const blob = await zip.generateAsync({ type: "blob" })
       const url = window.URL.createObjectURL(blob)
       const a = document.createElement("a")
