@@ -71,8 +71,10 @@ export default function Translation() {
   // Translate text using API
   const translateText = async (text: string, targetLang: string) => {
     try {
-      const response = await fetch("/api/groq-translate", {
+      const response = await fetch("/api/gemini-translate", {
         // use /api/openai-translate to translate using openai
+        // use /api/groq-translate to translate using groq
+        // use /api/gemini-translate to translate using google gemini
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ text, targetLanguage: targetLang })
